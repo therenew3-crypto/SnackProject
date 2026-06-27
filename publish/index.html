@@ -49,6 +49,11 @@
     </p>
   </header>
 
+  <!-- ============ 상단 배너 광고 (카카오 애드핏 320x100) ============ -->
+  <div id="adTop" class="mb-6 flex justify-center items-center min-h-[100px]">
+    <span class="text-[11px] text-gray-600">광고</span>
+  </div>
+
   <!-- ============ 입력 폼 ============ -->
   <section id="form-view" class="glass rounded-3xl p-6 space-y-5">
 
@@ -124,23 +129,22 @@
     </button>
   </section>
 
-  <!-- ============ 하단 배너 광고 (카카오 애드핏) ============ -->
-  <div id="adBottom" class="mt-8 flex justify-center min-h-[100px]">
-    <div class="text-[11px] text-gray-600 self-center">광고 영역 (애드핏 승인 후 자동 노출)</div>
+  <!-- ============ 하단 사각 광고 (카카오 애드핏 300x250) ============ -->
+  <div id="adBottom" class="mt-8 flex justify-center items-center min-h-[250px]">
+    <span class="text-[11px] text-gray-600">광고</span>
   </div>
 </div>
 
-<!-- ============ 전면(인터스티셜) 광고 모달 ============ -->
-<div id="adModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
-  <div class="glass rounded-3xl p-5 text-center w-full max-w-[360px]">
-    <div class="w-12 h-12 mx-auto mb-4 border-4 border-white/15 border-t-gold rounded-full spin"></div>
-    <p class="text-gold font-bold text-lg">광고 로딩 중...</p>
-    <p class="text-gray-400 text-sm mt-1">잠시 후 결과가 공개됩니다</p>
-    <!-- 카카오 애드핏 광고 영역 (모달이 열릴 때 동적 삽입) -->
-    <div id="adSlot" class="mt-4 mx-auto w-[300px] max-w-full min-h-[250px] flex items-center justify-center bg-black/40 rounded-xl border border-dashed border-white/15 text-xs text-gray-600 overflow-hidden">
-      광고 영역 (애드핏 승인 후 자동 노출)
+<!-- ============ 결과 직전 전면(인터스티셜) 광고 모달 ============ -->
+<div id="adModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center px-4">
+  <div class="glass rounded-3xl p-5 text-center w-full max-w-[360px] max-h-[92vh] overflow-y-auto">
+    <p class="text-gold font-bold text-base">결과 분석 완료!</p>
+    <p class="text-gray-400 text-xs mt-1 mb-3">잠시 후 결과가 공개됩니다</p>
+    <!-- 카카오 애드핏 전면광고 — 모달이 '보인 뒤' 동적 삽입해야 정상 렌더됨 -->
+    <div id="adSlot" class="mx-auto w-[320px] max-w-full min-h-[480px] flex items-center justify-center bg-black/40 rounded-xl border border-dashed border-white/15 text-xs text-gray-600 overflow-hidden">
+      광고 영역
     </div>
-    <p class="mt-4 text-2xl font-black text-white"><span id="adCount">3</span>초</p>
+    <p class="mt-4 text-lg font-black text-white"><span id="adCount">3</span>초 후 결과 공개</p>
   </div>
 </div>
 
@@ -394,11 +398,12 @@ function animateNumber(el, target){
   requestAnimationFrame(step);
 }
 
-/* ===================== 카카오 애드핏 광고 =====================
-   ⚠️ 아래 두 단위 코드를 adfit.kakao.com 에서 발급받은 값(DAN-...)으로 교체하세요.
-   교체 전(placeholder)에는 광고를 그리지 않고 안내 문구를 유지합니다. */
-const ADFIT_MODAL_UNIT  = "DAN-8QjyorrOVw0Bv1mE";  // 전면 모달용 (300x250)
-const ADFIT_BOTTOM_UNIT = "DAN-LLpWlk1ICCATK0lQ";  // 하단 배너용 (320x100)
+/* ===================== 카카오 애드핏 광고 (하이브리드) =====================
+   상단 배너·하단 사각은 항상 노출, 320x480은 결과 직전 전면(인터스티셜)으로 노출.
+   ※ 단위코드는 adfit.kakao.com 발급값. 전면광고는 모달이 '보인 뒤' 로드해야 렌더됨. */
+const ADFIT_BANNER_320 = "DAN-LLpWlk1ICCATK0lQ";  // 상단 배너 (320x100) — 항상 노출
+const ADFIT_RECT_300   = "DAN-8QjyorrOVw0Bv1mE";  // 하단 사각 (300x250) — 항상 노출
+const ADFIT_INTER      = "DAN-z7X3S5Y4Xp9L5HFI";  // 전면 인터스티셜 (320x480) — 결과 직전
 
 function isRealUnit(u){ return /^DAN-[A-Za-z0-9]{8,}$/.test(u || ""); }
 
@@ -419,18 +424,20 @@ function loadAdfit(container, unit, w, h){
   container.appendChild(s);              // 삽입 후 스크립트가 영역을 스캔·렌더
 }
 
-// 하단 배너: 페이지 로드 시 1회
-loadAdfit(document.getElementById('adBottom'), ADFIT_BOTTOM_UNIT, 320, 100);
+// 상단 배너 + 하단 사각: 페이지 로드 시 각 1회 (둘 다 항상 보임)
+loadAdfit(document.getElementById('adTop'), ADFIT_BANNER_320, 320, 100);
+loadAdfit(document.getElementById('adBottom'), ADFIT_RECT_300, 300, 250);
 
-/* ===================== 전면 광고 → 결과 ===================== */
+/* ===================== 결과 확인 → 전면광고 3초 → 결과 =====================
+   순서 중요: 모달을 먼저 '보이게' 한 뒤 광고를 로드해야 정상 렌더된다. */
 document.getElementById('calcBtn').addEventListener('click', () => {
   const r = compute();
   if (!r) return;
   const modal = document.getElementById('adModal');
   const countEl = document.getElementById('adCount');
-  loadAdfit(document.getElementById('adSlot'), ADFIT_MODAL_UNIT, 300, 250); // 모달 열 때마다 새 광고
+  modal.classList.remove('hidden');                                    // 1) 먼저 보이게
+  loadAdfit(document.getElementById('adSlot'), ADFIT_INTER, 320, 480); // 2) 그다음 로드
   let n = 3; countEl.textContent = n;
-  modal.classList.remove('hidden');
   const iv = setInterval(() => {
     n--; countEl.textContent = n;
     if (n <= 0){
