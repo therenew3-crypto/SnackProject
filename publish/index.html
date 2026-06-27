@@ -5,8 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>타임머신 IF 계좌 계산기 — 내가 그때 샀더라면?</title>
 <meta name="description" content="과거로 돌아가 비트코인·엔비디아·테슬라를 샀다면 지금 내 계좌는 얼마? 5초 만에 확인하는 껄무새 계산기." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://if-ggeolmusae.netlify.app/" />
 <meta property="og:title" content="내가 과거로 돌아갔다면? 💸 IF 계좌 계산기" />
 <meta property="og:description" content="그때 샀더라면 지금 얼마였을까? 당신의 가상 계좌 잔액을 확인하세요." />
+<meta property="og:image" content="https://if-ggeolmusae.netlify.app/og-image.png?v=1" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="내가 과거로 돌아갔다면? 💸 IF 계좌 계산기" />
+<meta name="twitter:description" content="그때 샀더라면 지금 얼마였을까? 당신의 가상 계좌 잔액을 확인하세요." />
+<meta name="twitter:image" content="https://if-ggeolmusae.netlify.app/og-image.png?v=1" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -24,6 +33,9 @@
   .glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
   .gold-glow { box-shadow: 0 0 40px -8px rgba(255,215,0,0.45); }
   select, input { color-scheme: dark; }
+  /* 드롭다운 펼침 목록을 다크 테마로 강제 (흰 글씨+밝은 배경 가독성 문제 해결) */
+  select option { background-color: #131722; color: #f2f4f8; }
+  select optgroup { background-color: #0b0e15; color: #FFD700; font-weight: 700; }
   @keyframes pop { 0%{transform:scale(.6);opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
   .pop { animation: pop .5s cubic-bezier(.2,.8,.2,1) both; }
   @keyframes spin { to { transform: rotate(360deg); } }
