@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>타임머신 IF 계좌 계산기 — 내가 그때 샀더라면?</title>
+<meta name="description" content="과거로 돌아가 비트코인·엔비디아·테슬라를 샀다면 지금 내 계좌는 얼마? 5초 만에 확인하는 껄무새 계산기." />
+<meta property="og:title" content="내가 과거로 돌아갔다면? 💸 IF 계좌 계산기" />
+<meta property="og:description" content="그때 샀더라면 지금 얼마였을까? 당신의 가상 계좌 잔액을 확인하세요." />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: { gold: '#FFD700', up: '#ff4d4f', down: '#3b82f6' },
+        fontFamily: { sans: ['Pretendard', 'system-ui', '-apple-system', 'sans-serif'] }
+      }
+    }
+  }
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<style>
+  body { background: radial-gradient(120% 120% at 50% 0%, #131722 0%, #0a0d14 55%, #06080d 100%); }
+  .glass { background: rgba(255,255,255,0.04); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+  .gold-glow { box-shadow: 0 0 40px -8px rgba(255,215,0,0.45); }
+  select, input { color-scheme: dark; }
+  @keyframes pop { 0%{transform:scale(.6);opacity:0} 70%{transform:scale(1.06)} 100%{transform:scale(1);opacity:1} }
+  .pop { animation: pop .5s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  .float { animation: float 3s ease-in-out infinite; }
+  .confetti { position: fixed; width: 10px; height: 14px; top: -20px; z-index: 60; pointer-events: none; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+</style>
+</head>
+<body class="min-h-screen text-white antialiased">
+
+<div class="max-w-md mx-auto px-5 py-8">
+
+  <!-- 헤더 -->
+  <header class="text-center mb-7">
+    <div class="text-5xl mb-3 float">⏳</div>
+    <h1 class="text-2xl font-extrabold tracking-tight">
+      내가 <span class="text-gold">과거</span>로 돌아갔다면?
+    </h1>
+    <p class="text-gray-400 text-sm mt-2 leading-relaxed">
+      그때 샀더라면… 지금 내 계좌는 얼마?<br/>5초 만에 확인하는 <b class="text-gold">IF 계좌 계산기</b>
+    </p>
+  </header>
+
+  <!-- ============ 입력 폼 ============ -->
+  <section id="form-view" class="glass rounded-3xl p-6 space-y-5">
+
+    <div>
+      <label class="block text-sm font-semibold text-gray-300 mb-2">📈 어떤 자산을 살까?</label>
+      <select id="asset" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3.5 text-base font-medium focus:outline-none focus:border-gold transition"></select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-semibold text-gray-300 mb-2">🕰️ 언제로 돌아갈까?</label>
+      <select id="buyTime" class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3.5 text-base font-medium focus:outline-none focus:border-gold transition"></select>
+    </div>
+
+    <div>
+      <label class="block text-sm font-semibold text-gray-300 mb-2">💰 얼마를 투자할까? (원)</label>
+      <input id="amount" type="text" inputmode="numeric" placeholder="예: 10,000,000"
+        class="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3.5 text-base font-medium focus:outline-none focus:border-gold transition" />
+      <div class="flex gap-2 mt-2.5">
+        <button data-amt="1000000"  class="quick flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 transition">100만</button>
+        <button data-amt="10000000" class="quick flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 transition">1,000만</button>
+        <button data-amt="50000000" class="quick flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 transition">5,000만</button>
+        <button data-amt="100000000" class="quick flex-1 text-xs py-2 rounded-xl bg-white/5 hover:bg-white/10 transition">1억</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="flex items-baseline justify-between mb-2">
+        <label class="text-sm font-semibold text-gray-300">🏁 언제 팔까?</label>
+        <span id="sellLabel" class="text-base font-extrabold text-gold">2026년 6월 (현재)</span>
+      </div>
+      <input id="sellRange" type="range" min="0" max="10" value="10" step="1"
+        class="w-full accent-gold cursor-pointer" />
+      <div class="flex justify-between text-[10px] text-gray-500 mt-1 px-0.5">
+        <span>'16</span><span>'18</span><span>'20</span><span>'22</span><span>'24</span><span>현재</span>
+      </div>
+    </div>
+
+    <button id="calcBtn" class="w-full bg-gold text-black font-extrabold text-lg py-4 rounded-2xl gold-glow hover:brightness-95 active:scale-[.98] transition">
+      💸 내 가상 계좌 잔액 확인하기
+    </button>
+    <p class="text-[11px] text-gray-500 text-center leading-snug">
+      ※ 시세 출처: yfinance·KRX(2026-06-27 기준 실데이터).<br/>재미용이며 투자 권유가 아닙니다.
+    </p>
+  </section>
+
+  <!-- ============ 결과 화면 ============ -->
+  <section id="result-view" class="hidden">
+    <div id="resultCard" class="glass rounded-3xl p-7 text-center pop">
+      <div id="gradeEmoji" class="text-6xl mb-2"></div>
+      <div id="gradeName" class="text-sm font-bold tracking-widest mb-4"></div>
+
+      <p class="text-gray-400 text-xs">만약 그때 샀다면, 당신의 계좌엔…</p>
+      <div id="finalAmount" class="text-4xl font-black my-3 text-gold leading-tight">0원</div>
+      <div id="returnBadge" class="inline-block text-sm font-bold px-3 py-1 rounded-full mb-5"></div>
+
+      <div class="bg-black/30 rounded-2xl p-4 text-sm space-y-2 text-left mb-5">
+        <div class="flex justify-between"><span class="text-gray-400">자산</span><span id="rAsset" class="font-semibold"></span></div>
+        <div class="flex justify-between"><span class="text-gray-400">매수 시점</span><span id="rBuyTime" class="font-semibold"></span></div>
+        <div class="flex justify-between"><span class="text-gray-400">투자 원금</span><span id="rAmount" class="font-semibold"></span></div>
+        <div class="flex justify-between"><span class="text-gray-400">매도 시점</span><span id="rSellTime" class="font-semibold"></span></div>
+        <div class="border-t border-white/10 my-1"></div>
+        <div class="flex justify-between"><span class="text-gray-400">평가 손익</span><span id="rProfit" class="font-bold"></span></div>
+      </div>
+
+      <p id="gradeMsg" class="text-[15px] leading-relaxed font-medium text-gray-100 mb-1"></p>
+    </div>
+
+    <button id="shareBtn" class="w-full mt-4 bg-[#FEE500] text-black font-extrabold text-base py-4 rounded-2xl active:scale-[.98] transition flex items-center justify-center gap-2">
+      💬 카카오톡으로 공유하고 친구 기 죽이기
+    </button>
+    <button id="retryBtn" class="w-full mt-2.5 text-gray-400 font-semibold text-sm py-3 hover:text-white transition">
+      ↺ 다른 시점으로 다시 계산하기
+    </button>
+  </section>
+</div>
+
+<!-- ============ 페이크 광고 모달 ============ -->
+<div id="adModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-6">
+  <div class="glass rounded-3xl p-8 text-center max-w-xs w-full">
+    <div class="w-12 h-12 mx-auto mb-5 border-4 border-white/15 border-t-gold rounded-full spin"></div>
+    <p class="text-gold font-bold text-lg">광고 로딩 중...</p>
+    <p class="text-gray-400 text-sm mt-1">잠시 후 결과가 공개됩니다</p>
+    <div class="mt-5 text-xs text-gray-500 bg-black/40 rounded-xl py-6 px-3 border border-dashed border-white/15">
+      [ AD PLACEHOLDER ]<br/>
+      <span class="text-gray-600">광고가 노출되는 영역입니다</span>
+    </div>
+    <p class="mt-4 text-2xl font-black text-white"><span id="adCount">3</span>초</p>
+  </div>
+</div>
+
+<script>
+/* ===================== 데이터셋 (엔터테인먼트용 근사치) =====================
+   가격은 자산별 단위로 일관되게 저장 (미국주식·코인=USD, 삼성전자=KRW).
+   수익은 (매도가 / 매수가) 비율로만 계산되므로 통화 단위는 결과에 영향 없음.
+   미국 주식은 액면분할 반영(split-adjusted) 근사치.                           */
+/* 매수 가능한 시점 — 구체적 날짜 + 스토리 (시간순). null이면 해당 자산 미존재 */
+const TIMES = [
+  { key:"d20150102", date:"2015. 01. 02", story:"비트코인 창세기" },
+  { key:"d20171217", date:"2017. 12. 17", story:"1차 코인 광풍 꼭지" },
+  { key:"d20181215", date:"2018. 12. 15", story:"크립토 겨울 바닥" },
+  { key:"d20200323", date:"2020. 03. 23", story:"코로나 대폭락 (줍줍 명당)" },
+  { key:"d20211109", date:"2021. 11. 09", story:"역대급 불장 꼭지" },
+  { key:"d20220103", date:"2022. 01. 03", story:"2022 상투" },
+  { key:"d20221109", date:"2022. 11. 09", story:"FTX 붕괴 패닉" },
+  { key:"d20230102", date:"2023. 01. 02", story:"약세장 신년" },
+  { key:"d20240102", date:"2024. 01. 02", story:"AI 랠리 직전" },
+  { key:"d20250102", date:"2025. 01. 02", story:"작년 신년" }
+];
+const TIMEMAP = Object.fromEntries(TIMES.map(t => [t.key, t]));
+const timeLabel = key => { const t = TIMEMAP[key]; return `${t.date} · ${t.story}`; };
+
+/* 가격: 미국주식·코인=USD, 한국주식=KRW. 비율 계산이라 통화 무관.
+   ▶ 실제 시세 (fetch_prices.py / fetch_kr.py 로 수집, 2026-06-27 기준)
+     · 미국주식·코인: yfinance 수정종가(액면분할·배당 반영)
+     · 한국주식: KRX 공식(pykrx) 종가 / ATH=장중 고가
+   key 순서: 2015.01 / 2017.12 / 2018.12 / 2020.03 / 2021.11 / 2022.01 / 2022.11 / 2023.01 / 2024.01 / 2025.01 / now / ath
+   ※ ETH·DOGE의 2015.01은 Yahoo 데이터 시작(2017-11) 이전이라 null */
+const ASSETS = {
+  BTC:  { name:"비트코인 (BTC)", emoji:"₿", cat:"코인",
+    d20150102:315, d20171217:19141, d20181215:3236.8, d20200323:6416.3, d20211109:66972, d20220103:46458, d20221109:15881, d20230102:16688, d20240102:44958, d20250102:96887, now:60475, ath:126198 },
+  ETH:  { name:"이더리움 (ETH)", emoji:"💎", cat:"코인",
+    d20150102:null, d20171217:720, d20181215:84.44, d20200323:134.9, d20211109:4735.1, d20220103:3761.4, d20221109:1100.2, d20230102:1214.7, d20240102:2355.8, d20250102:3451.4, now:1591.4, ath:4953.7 },
+  DOGE: { name:"도지코인 (DOGE)", emoji:"🐕", cat:"코인",
+    d20150102:null, d20171217:0.005984, d20181215:0.002113, d20200323:0.001805, d20211109:0.2735, d20220103:0.1701, d20221109:0.0743, d20230102:0.0715, d20240102:0.0912, d20250102:0.3386, now:0.0752, ath:0.7376 },
+  NVDA: { name:"엔비디아 (NVDA)", emoji:"🟩", cat:"미국주식",
+    d20150102:0.4824, d20171217:4.73, d20181215:3.63, d20200323:5.29, d20211109:30.56, d20220103:30.03, d20221109:13.74, d20230102:14.58, d20240102:48.08, d20250102:138.1, now:192.5, ath:236.3 },
+  TSLA: { name:"테슬라 (TSLA)", emoji:"🚗", cat:"미국주식",
+    d20150102:14.62, d20171217:22.9, d20181215:24.38, d20200323:28.95, d20211109:341.2, d20220103:399.9, d20221109:177.6, d20230102:123.2, d20240102:248.4, d20250102:379.3, now:379.7, ath:498.8 },
+  AAPL: { name:"애플 (AAPL)", emoji:"🍎", cat:"미국주식",
+    d20150102:24.19, d20171217:40.67, d20181215:39.26, d20200323:54.16, d20211109:147.4, d20220103:177.9, d20221109:132.6, d20230102:127.8, d20240102:183.6, d20250102:242.3, now:283.8, ath:317.4 },
+  "005930": { name:"삼성전자 (005930)", emoji:"📱", cat:"한국주식",
+    d20150102:26600, d20171217:50620, d20181215:38950, d20200323:42500, d20211109:70500, d20220103:78600, d20221109:62000, d20230102:55500, d20240102:79600, d20250102:53400, now:339500, ath:374500 },
+  "000660": { name:"SK하이닉스 (000660)", emoji:"🔩", cat:"한국주식",
+    d20150102:47750, d20171217:75700, d20181215:61800, d20200323:69400, d20211109:109000, d20220103:128500, d20221109:89200, d20230102:75700, d20240102:142400, d20250102:171200, now:2673000, ath:2987000 },
+  GOLD: { name:"금 (Gold)", emoji:"🥇", cat:"금·원자재",
+    d20150102:1186, d20171217:1254.3, d20181215:1237, d20200323:1567, d20211109:1830.2, d20220103:1799.4, d20221109:1710.1, d20230102:1819.7, d20240102:2064.4, d20250102:2658.9, now:4078.7, ath:5586.2 }
+};
+
+/* 매도 시점 — 연말 종가(2016~2025) + 2026 현재. fetch_sells.py 로 수집한 실데이터.
+   key 순서: y2016 ~ y2025, now */
+const SELLS = {
+  BTC:    { y2016:963.7, y2017:14156, y2018:3742.7, y2019:7193.6, y2020:29002, y2021:46306, y2022:16547, y2023:42265, y2024:93429, y2025:87509, now:60498 },
+  ETH:    { y2016:null, y2017:756.7, y2018:133.4, y2019:129.6, y2020:737.8, y2021:3682.6, y2022:1196.8, y2023:2281.5, y2024:3332.5, y2025:2967.0, now:1591.6 },
+  DOGE:   { y2016:null, y2017:0.008972, y2018:0.002346, y2019:0.002028, y2020:0.004682, y2021:0.1705, y2022:0.0703, y2023:0.0895, y2024:0.3157, y2025:0.1173, now:0.0752 },
+  NVDA:   { y2016:2.63, y2017:4.78, y2018:3.31, y2019:5.85, y2020:13.0, y2021:29.32, y2022:14.58, y2023:49.43, y2024:134.1, y2025:186.3, now:192.5 },
+  TSLA:   { y2016:14.25, y2017:20.76, y2018:22.19, y2019:27.89, y2020:235.2, y2021:352.3, y2022:123.2, y2023:248.5, y2024:403.8, y2025:449.7, now:379.7 },
+  AAPL:   { y2016:26.65, y2017:39.56, y2018:37.43, y2019:70.72, y2020:128.9, y2021:173.6, y2022:127.8, y2023:190.4, y2024:248.8, y2025:271.4, now:283.8 },
+  "005930": { y2016:36040, y2017:50960, y2018:38700, y2019:55800, y2020:81000, y2021:78300, y2022:55300, y2023:78500, y2024:53200, y2025:119900, now:339500 },
+  "000660": { y2016:44700, y2017:76500, y2018:60500, y2019:94100, y2020:118500, y2021:131000, y2022:75000, y2023:141500, y2024:173900, y2025:651000, now:2673000 },
+  GOLD: { y2016:1150, y2017:1306.3, y2018:1278.3, y2019:1519.5, y2020:1893.1, y2021:1827.5, y2022:1819.7, y2023:2062.4, y2024:2629.2, y2025:4325.6, now:4078.7 }
+};
+// 슬라이더 인덱스(0~10) → 매도 시점. t = 정렬용 YYYYMM
+const SELL_POINTS = [
+  { key:"y2016", label:"2016년 말", t:201612 },
+  { key:"y2017", label:"2017년 말", t:201712 },
+  { key:"y2018", label:"2018년 말", t:201812 },
+  { key:"y2019", label:"2019년 말", t:201912 },
+  { key:"y2020", label:"2020년 말", t:202012 },
+  { key:"y2021", label:"2021년 말", t:202112 },
+  { key:"y2022", label:"2022년 말", t:202212 },
+  { key:"y2023", label:"2023년 말", t:202312 },
+  { key:"y2024", label:"2024년 말", t:202412 },
+  { key:"y2025", label:"2025년 말", t:202512 },
+  { key:"now",   label:"2026년 6월 (현재)", t:202606 }
+];
+// 매수 시점 key("d20150102") → 정렬용 YYYYMM(201501)
+const buyT = key => parseInt(key.slice(1, 7), 10);
+
+/* ===================== 상태 ===================== */
+let sellIdx = 10; // SELL_POINTS 인덱스 (기본: 현재)
+
+/* ===================== 셀렉트 채우기 (카테고리별 그룹) ===================== */
+const assetSel = document.getElementById('asset');
+const cats = {};
+Object.entries(ASSETS).forEach(([k,v]) => { (cats[v.cat] ||= []).push([k,v]); });
+Object.entries(cats).forEach(([cat, list]) => {
+  const og = document.createElement('optgroup'); og.label = cat;
+  list.forEach(([k,v]) => {
+    const o = document.createElement('option'); o.value = k; o.textContent = `${v.emoji}  ${v.name}`; og.appendChild(o);
+  });
+  assetSel.appendChild(og);
+});
+const buySel = document.getElementById('buyTime');
+TIMES.forEach(t => {
+  const o = document.createElement('option'); o.value = t.key; o.textContent = `${t.date} · ${t.story}`; buySel.appendChild(o);
+});
+
+/* ===================== 입력 편의 ===================== */
+const amountEl = document.getElementById('amount');
+const fmtNum = n => n.toLocaleString('ko-KR');
+amountEl.addEventListener('input', e => {
+  const raw = e.target.value.replace(/[^0-9]/g,'');
+  e.target.value = raw ? fmtNum(parseInt(raw,10)) : '';
+});
+document.querySelectorAll('.quick').forEach(b => b.addEventListener('click', () => {
+  amountEl.value = fmtNum(parseInt(b.dataset.amt,10));
+}));
+
+const sellRange = document.getElementById('sellRange');
+const sellLabelEl = document.getElementById('sellLabel');
+sellRange.addEventListener('input', () => {
+  sellIdx = parseInt(sellRange.value, 10);
+  sellLabelEl.textContent = SELL_POINTS[sellIdx].label;
+});
+
+/* ===================== 포맷: 원화 → 조/억/만원 ===================== */
+function formatKRW(won){
+  const neg = won < 0; won = Math.abs(Math.round(won));
+  if (won === 0) return "0원";
+  const 조 = Math.floor(won/1e12), 억 = Math.floor((won%1e12)/1e8), 만 = Math.floor((won%1e8)/1e4), 원 = won%1e4;
+  let parts = [];
+  if (조) parts.push(조+"조");
+  if (억) parts.push(억+"억");
+  if (만) parts.push(fmtNum(만)+"만");
+  if (원 && !조 && !억) parts.push(fmtNum(원));
+  let s = parts.join(" ") + "원";
+  return (neg ? "-" : "") + s;
+}
+
+/* ===================== 등급 판정 ===================== */
+function grade(won){
+  if (won >= 1e9) return {
+    key:"rich", emoji:"👑", name:"대 부 호  등 급",
+    msg:"타임패러독스 유발자! 당장 사직서를 인쇄하고 회장님 뺨을 때리러 가세요.",
+    color:"text-gold"
+  };
+  if (won >= 1e8) return {
+    key:"mid", emoji:"🏢", name:"중 산 층  등 급",
+    msg:"강남 아파트 계약금은 벌었네요. 조금만 더 과감했으면 좋았을 걸!",
+    color:"text-gold"
+  };
+  return {
+    key:"ant", emoji:"🐜", name:"개 미  등 급",
+    msg:"예금자보호법 매니아. 과거로 돌아가서 고작 이만큼 사셨나요? 그냥 현실에 충실하세요.",
+    color:"text-gray-300"
+  };
+}
+
+/* ===================== 계산 ===================== */
+function compute(){
+  const aKey = assetSel.value, a = ASSETS[aKey];
+  const bKey = buySel.value;
+  const buyPrice = a[bKey];
+  const amount = parseInt((amountEl.value||"0").replace(/[^0-9]/g,''),10) || 0;
+
+  const sp = SELL_POINTS[sellIdx];
+  const sellPrice = SELLS[aKey][sp.key];
+
+  if (!amount) { alert("투자할 금액을 입력해 주세요! 💰"); return null; }
+  if (buyPrice == null) {
+    alert(`${a.name}은(는) ${TIMEMAP[bKey].date} 시점엔 아직 세상에 없었어요. 😅\n(상장·출시 이전)\n다른 시점이나 다른 자산을 골라보세요!`);
+    return null;
+  }
+  if (sp.t <= buyT(bKey)) {
+    alert(`⏰ 매도 시점(${sp.label})이 매수 시점보다 빠르거나 같아요!\n사기 전에 팔 수는 없잖아요. 매도 시점을 더 미래로 옮겨주세요.`);
+    return null;
+  }
+  if (sellPrice == null) {
+    alert(`${a.name}은(는) ${sp.label} 시점엔 아직 데이터가 없어요. 😅\n다른 매도 시점을 골라주세요!`);
+    return null;
+  }
+
+  const finalWon = amount * (sellPrice / buyPrice);
+  const profit = finalWon - amount;
+  const ratio = (sellPrice / buyPrice);
+
+  return {
+    a, aKey, bKey, amount, finalWon, profit, ratio,
+    sellLabel: sp.label
+  };
+}
+
+/* ===================== 결과 렌더 ===================== */
+function render(r){
+  const g = grade(r.finalWon);
+  document.getElementById('gradeEmoji').textContent = g.emoji;
+  const gn = document.getElementById('gradeName'); gn.textContent = g.name; gn.className = "text-sm font-bold tracking-widest mb-4 " + g.color;
+
+  document.getElementById('rAsset').textContent = r.a.name;
+  document.getElementById('rBuyTime').textContent = timeLabel(r.bKey);
+  document.getElementById('rAmount').textContent = formatKRW(r.amount);
+  document.getElementById('rSellTime').textContent = r.sellLabel;
+
+  const up = r.profit >= 0;
+  const pf = document.getElementById('rProfit');
+  pf.textContent = (up?"+":"") + formatKRW(r.profit);
+  pf.className = "font-bold " + (up ? "text-up" : "text-down");
+
+  const pct = ((r.ratio - 1) * 100);
+  const badge = document.getElementById('returnBadge');
+  badge.textContent = (up?"▲ ":"▼ ") + (up?"수익률 +":"수익률 ") + fmtNum(Math.round(pct)) + "% (" + r.ratio.toFixed(1) + "배)";
+  badge.className = "inline-block text-sm font-bold px-3 py-1 rounded-full mb-5 " + (up ? "bg-up/15 text-up" : "bg-down/15 text-down");
+
+  document.getElementById('gradeMsg').textContent = g.msg;
+
+  // 결과 카드 색 강조 + 화면 전환 (연출보다 먼저 — 무슨 일이 있어도 결과는 보이게)
+  const card = document.getElementById('resultCard');
+  card.className = "glass rounded-3xl p-7 text-center pop " + (g.key==="rich" ? "gold-glow" : "");
+
+  document.getElementById('form-view').classList.add('hidden');
+  document.getElementById('result-view').classList.remove('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+  window.__lastResult = r;
+
+  // 카운트업 애니메이션 + 대부호 컨페티
+  animateNumber(document.getElementById('finalAmount'), r.finalWon);
+  if (g.key === "rich") confetti();
+}
+
+/* ===================== 컨페티 연출 ===================== */
+function confetti(){
+  const colors = ['#FFD700','#ff4d4f','#3b82f6','#22c55e','#f59e0b','#ffffff'];
+  for (let i = 0; i < 80; i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = (Math.random() * 100) + 'vw';
+    c.style.background = colors[i % colors.length];
+    c.style.borderRadius = (i % 2 ? '50%' : '2px');
+    c.style.animation = `fall ${2 + Math.random() * 2}s linear ${Math.random() * 0.4}s forwards`;
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4600);
+  }
+}
+
+function animateNumber(el, target){
+  const dur = 1100, start = performance.now();
+  function step(now){
+    const t = Math.min((now-start)/dur, 1);
+    const eased = 1 - Math.pow(1-t, 3);
+    el.textContent = formatKRW(target * eased);
+    if (t < 1) requestAnimationFrame(step);
+    else el.textContent = formatKRW(target);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ===================== 페이크 광고 → 결과 ===================== */
+document.getElementById('calcBtn').addEventListener('click', () => {
+  const r = compute();
+  if (!r) return;
+  const modal = document.getElementById('adModal');
+  const countEl = document.getElementById('adCount');
+  let n = 3; countEl.textContent = n;
+  modal.classList.remove('hidden');
+  const iv = setInterval(() => {
+    n--; countEl.textContent = n;
+    if (n <= 0){
+      clearInterval(iv);
+      modal.classList.add('hidden');
+      render(r);
+    }
+  }, 1000);
+});
+
+/* ===================== 다시하기 ===================== */
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('result-view').classList.add('hidden');
+  document.getElementById('form-view').classList.remove('hidden');
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+/* ===================== 공유 ===================== */
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  const r = window.__lastResult; if (!r) return;
+  const g = grade(r.finalWon);
+  const text =
+`⏳ IF 계좌 계산기 결과 ${g.emoji}
+${r.a.name}을(를) ${TIMEMAP[r.bKey].date}(${TIMEMAP[r.bKey].story})에 ${formatKRW(r.amount)} 샀다면?
+👉 ${r.sellLabel} 매도 시: ${formatKRW(r.finalWon)} (${r.ratio.toFixed(1)}배!)
+[${g.name.replace(/ /g,'')}]
+너도 해봐 👇`;
+
+  // 실제 서비스에서는 Kakao SDK (Kakao.Share.sendDefault) 연동.
+  // file:// 같은 비보안 컨텍스트에서 navigator.share 를 호출하면 렌더러가
+  // 강제 종료(RESULT_CODE_KILLED_BAD_MESSAGE)되므로, http(s)에서만 사용한다.
+  const httpUrl = /^https?:/i.test(location.href) ? location.href : '';
+  const payload = text + (httpUrl ? "\n" + httpUrl : "");
+
+  if (httpUrl && navigator.share && (!navigator.canShare || navigator.canShare({ text }))) {
+    try { await navigator.share({ title:"IF 계좌 계산기", text, url: httpUrl }); return; }
+    catch(e){ if (e && e.name === 'AbortError') return; /* 그 외엔 복사로 폴백 */ }
+  }
+
+  // 클립보드 복사 (보안 컨텍스트) → 실패 시 execCommand → prompt 순 폴백
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(payload);
+      alert("결과가 복사됐어요! 카카오톡에 붙여넣기 하세요 📋");
+      return;
+    }
+    throw new Error('clipboard unavailable');
+  } catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = payload;
+    ta.style.position = 'fixed'; ta.style.top = '0'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch(_){}
+    document.body.removeChild(ta);
+    if (ok) alert("결과가 복사됐어요! 카카오톡에 붙여넣기 하세요 📋");
+    else prompt("아래 내용을 복사해 공유하세요:", payload);
+  }
+});
+</script>
+</body>
+</html>
