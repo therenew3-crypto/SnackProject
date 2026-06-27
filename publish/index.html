@@ -342,8 +342,17 @@ function compute(){
 
   return {
     a, aKey, bKey, amount, finalWon, profit, ratio,
-    sellLabel: sp.label
+    idx: sellIdx, sellLabel: sp.label
   };
+}
+
+/* 결과를 URL 쿼리로 인코딩 (공유 링크 → 같은 결과 재현) */
+function resultParams(r){
+  return new URLSearchParams({ a:r.aKey, b:r.bKey, amt:String(r.amount), s:String(r.idx) }).toString();
+}
+function resultUrl(r){
+  const base = /^https?:/i.test(location.href) ? (location.origin + location.pathname) : '';
+  return base ? base + '?' + resultParams(r) : '';
 }
 
 /* ===================== 결과 렌더 ===================== */
@@ -478,10 +487,10 @@ ${r.a.name}을(를) ${TIMEMAP[r.bKey].date}(${TIMEMAP[r.bKey].story})에 ${forma
 [${g.name.replace(/ /g,'')}]
 너도 해봐 👇`;
 
-  // 실제 서비스에서는 Kakao SDK (Kakao.Share.sendDefault) 연동.
+  // 결과가 담긴 링크 (열면 같은 결과가 자동 표시됨)
   // file:// 같은 비보안 컨텍스트에서 navigator.share 를 호출하면 렌더러가
   // 강제 종료(RESULT_CODE_KILLED_BAD_MESSAGE)되므로, http(s)에서만 사용한다.
-  const httpUrl = /^https?:/i.test(location.href) ? location.href : '';
+  const httpUrl = resultUrl(r);
   const payload = text + (httpUrl ? "\n" + httpUrl : "");
 
   if (httpUrl && navigator.share && (!navigator.canShare || navigator.canShare({ text }))) {
@@ -509,6 +518,25 @@ ${r.a.name}을(를) ${TIMEMAP[r.bKey].date}(${TIMEMAP[r.bKey].story})에 ${forma
     else prompt("아래 내용을 복사해 공유하세요:", payload);
   }
 });
+
+/* ===================== 공유 링크로 진입 시 결과 자동 표시 ===================== */
+(function initFromUrl(){
+  const p = new URLSearchParams(location.search);
+  const a = p.get('a');
+  if (!a || !ASSETS[a]) return;                       // 파라미터 없으면 일반 진입
+  const b = p.get('b');
+  const amt = parseInt(p.get('amt') || '0', 10);
+  const s = parseInt(p.get('s') || '10', 10);
+  if (!TIMEMAP[b] || !amt) return;
+  assetSel.value = a;
+  buySel.value = b;
+  amountEl.value = fmtNum(amt);
+  if (s >= 0 && s < SELL_POINTS.length){
+    sellIdx = s; sellRange.value = s; sellLabelEl.textContent = SELL_POINTS[s].label;
+  }
+  const r = compute();
+  if (r) render(r);                                   // 광고 모달 없이 바로 결과부터 보여줌
+})();
 </script>
 </body>
 </html>
