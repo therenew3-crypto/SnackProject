@@ -119,8 +119,11 @@
 
       <p class="text-gray-400 text-xs">만약 그때 샀다면, 당신의 계좌엔…</p>
       <div id="finalAmount" class="text-4xl font-black my-3 text-gold leading-tight">0원</div>
-      <div id="returnBadge" class="inline-block text-sm font-bold px-3 py-1 rounded-full mb-2"></div>
-      <div id="rankLine" class="text-sm font-extrabold text-gold mb-5"></div>
+      <div id="returnBadge" class="inline-block text-sm font-bold px-3 py-1 rounded-full mb-3"></div>
+      <div class="mb-5">
+        <div class="text-[11px] text-gray-400 tracking-[0.25em]">수익률 순위</div>
+        <div id="rankValue" class="text-xl font-black text-gold mt-1"></div>
+      </div>
 
       <div class="bg-black/30 rounded-2xl p-4 text-sm space-y-2 text-left mb-5">
         <div class="flex justify-between"><span class="text-gray-400">자산</span><span id="rAsset" class="font-semibold"></span></div>
@@ -427,10 +430,8 @@ function rankInfo(ratio){
   const total = ALL_RATIOS.length;
   const rank = better + 1;
   const pct = Math.max(0.1, (rank / total) * 100);
-  const label = rank === 1
-    ? `🥇 전체 ${fmtNum(total)}개 시나리오 중 당당 1등! 역대 최고 명당`
-    : `🏆 전체 ${fmtNum(total)}개 시나리오 중 ${fmtNum(rank)}등 · 상위 ${pct.toFixed(1)}%`;
-  return { rank, total, pct, label };
+  const value = `${fmtNum(rank)}등 / 상위 ${pct.toFixed(1)}%`;
+  return { rank, total, pct, value };
 }
 
 /* ===================== 계산 ===================== */
@@ -497,8 +498,10 @@ function render(r){
   badge.textContent = (up?"▲ ":"▼ ") + (up?"수익률 +":"수익률 ") + fmtNum(Math.round(pct)) + "% (" + r.ratio.toFixed(1) + "배)";
   badge.className = "inline-block text-sm font-bold px-3 py-1 rounded-full mb-5 " + (up ? "bg-up/15 text-up" : "bg-down/15 text-down");
 
-  const rk = rankInfo(r.ratio); r.rankLabel = rk.label;
-  document.getElementById('rankLine').textContent = rk.label;
+  const rk = rankInfo(r.ratio);
+  r.rankValue = rk.value;
+  r.rankLabel = `수익률 순위 ${rk.value}`;
+  document.getElementById('rankValue').textContent = rk.value;
 
   r.msg = wittyMessage(r.ratio);
   document.getElementById('gradeMsg').textContent = r.msg;
