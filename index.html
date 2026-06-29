@@ -153,8 +153,11 @@
     <p class="text-gold font-bold text-base">결과 분석 완료!</p>
     <p class="text-gray-400 text-xs mt-1 mb-3">잠시 후 결과가 공개됩니다</p>
     <!-- 카카오 애드핏 전면광고 — 모달이 '보인 뒤' 동적 삽입해야 정상 렌더됨 -->
-    <div id="adSlot" class="mx-auto w-[320px] max-w-full min-h-[480px] flex items-center justify-center bg-black/40 rounded-xl border border-dashed border-white/15 text-xs text-gray-600 overflow-hidden">
-      광고 영역
+    <div id="adSlot" class="mx-auto w-[320px] max-w-full flex items-center justify-center overflow-hidden">
+      <div id="adFallback" class="py-10 text-center">
+        <div class="text-4xl mb-2">💰</div>
+        <p class="text-gray-300 text-sm font-semibold">결과를 불러오는 중…</p>
+      </div>
     </div>
     <p class="mt-4 text-lg font-black text-white"><span id="adCount">3</span>초 후 결과 공개</p>
   </div>
@@ -449,6 +452,37 @@ function loadAdfit(container, unit, w, h){
 loadAdfit(document.getElementById('adTop'), ADFIT_BANNER_320, 320, 100);
 loadAdfit(document.getElementById('adBottom'), ADFIT_RECT_300, 300, 250);
 
+/* 전면(팝업) 광고: 안내 폴백을 유지한 채 광고를 덧붙이고,
+   광고가 실제로 채워지면(iframe 생성) 폴백을 숨긴다.
+   → 미승인·미충전이어도 팝업이 빈 박스로 깨지지 않음 */
+function loadInterstitial(){
+  const slot = document.getElementById('adSlot');
+  if (!slot) return;
+  // 안내 폴백 복원(이전 광고 정리)
+  slot.innerHTML = '<div id="adFallback" class="py-10 text-center"><div class="text-4xl mb-2">💰</div><p class="text-gray-300 text-sm font-semibold">결과를 불러오는 중…</p></div>';
+  if (!isRealUnit(ADFIT_INTER)) return;
+  const ins = document.createElement('ins');
+  ins.className = 'kakao_ad_area';
+  ins.style.display = 'none';
+  ins.setAttribute('data-ad-unit', ADFIT_INTER);
+  ins.setAttribute('data-ad-width', '320');
+  ins.setAttribute('data-ad-height', '480');
+  slot.appendChild(ins);
+  const s = document.createElement('script');
+  s.src = 'https://t1.daumcdn.net/kas/static/ba.min.js';
+  s.async = true;
+  slot.appendChild(s);
+  // 광고가 채워졌으면 안내 폴백 숨김 (0.6초 간격으로 ~3초간 확인)
+  let tries = 0;
+  const chk = setInterval(() => {
+    if (slot.querySelector('iframe')) {
+      const fb = document.getElementById('adFallback');
+      if (fb) fb.style.display = 'none';
+      clearInterval(chk);
+    } else if (++tries > 5) clearInterval(chk);
+  }, 600);
+}
+
 /* ===================== 결과 확인 → 전면광고 3초 → 결과 =====================
    순서 중요: 모달을 먼저 '보이게' 한 뒤 광고를 로드해야 정상 렌더된다. */
 document.getElementById('calcBtn').addEventListener('click', () => {
@@ -456,8 +490,8 @@ document.getElementById('calcBtn').addEventListener('click', () => {
   if (!r) return;
   const modal = document.getElementById('adModal');
   const countEl = document.getElementById('adCount');
-  modal.classList.remove('hidden');                                    // 1) 먼저 보이게
-  loadAdfit(document.getElementById('adSlot'), ADFIT_INTER, 320, 480); // 2) 그다음 로드
+  modal.classList.remove('hidden');   // 1) 먼저 보이게
+  loadInterstitial();                 // 2) 그다음 광고 로드(+미충전 시 안내 폴백 유지)
   let n = 3; countEl.textContent = n;
   const iv = setInterval(() => {
     n--; countEl.textContent = n;
