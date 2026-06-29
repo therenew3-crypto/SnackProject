@@ -295,25 +295,6 @@ function formatKRW(won){
   return (neg ? "-" : "") + s;
 }
 
-/* ===================== 등급 판정 ===================== */
-function grade(won){
-  if (won >= 1e9) return {
-    key:"rich", emoji:"👑", name:"대 부 호  등 급",
-    msg:"타임패러독스 유발자! 당장 사직서를 인쇄하고 회장님 뺨을 때리러 가세요.",
-    color:"text-gold"
-  };
-  if (won >= 1e8) return {
-    key:"mid", emoji:"🏢", name:"중 산 층  등 급",
-    msg:"강남 아파트 계약금은 벌었네요. 조금만 더 과감했으면 좋았을 걸!",
-    color:"text-gold"
-  };
-  return {
-    key:"ant", emoji:"🐜", name:"개 미  등 급",
-    msg:"예금자보호법 매니아. 과거로 돌아가서 고작 이만큼 사셨나요? 그냥 현실에 충실하세요.",
-    color:"text-gray-300"
-  };
-}
-
 /* ===================== 수익률별 재치 멘트 풀 (랜덤) =====================
    ratio = 매도가/매수가. {x}는 실제 배수로 치환됨. */
 const MSG_BANDS = [
@@ -405,6 +386,21 @@ function wittyMessage(ratio){
   return m.replace(/\{x\}/g, ratio.toFixed(1));
 }
 
+/* 수익률 구간별 등급 (이모지 + 랜덤 명칭). 멘트와 동일한 7구간 기준. big=컨페티 */
+const GRADE_BANDS = [
+  { max:0.5,      emoji:"💀", color:"text-down",     big:false, names:["깡통 등급","마이너스의 손","원금 증발 마스터","시간여행 흑역사","손실 확정러"] },
+  { max:0.9,      emoji:"📉", color:"text-down",     big:false, names:["살짝 물린 개미","치킨값 반납 등급","마이너스 새싹","존버 실패 등급"] },
+  { max:1.3,      emoji:"😐", color:"text-gray-300", big:false, names:["인생여전 등급","인간 안전자산","본전치기 장인","무(無)의 경지","평타 인생","도돌이표 등급"] },
+  { max:3,        emoji:"🙂", color:"text-gold",     big:false, names:["쏠쏠 용돈러","소소익선 등급","치킨 파티 등급","플러스 새내기","용돈벌이 성공"] },
+  { max:10,       emoji:"🔥", color:"text-gold",     big:true,  names:["대박 등급","예비 부자","껄무새 등극","숨은 고수","수익률 자랑러"] },
+  { max:50,       emoji:"🚀", color:"text-gold",     big:true,  names:["인생역전 등급","텐배거 헌터","퇴사각 등급","강남 가시권","친구 손절각"] },
+  { max:Infinity, emoji:"👑", color:"text-gold",     big:true,  names:["전설 등급","타임패러독스 갓","자본주의 클리어","건물단지 주인","신화의 영역"] }
+];
+function gradeByRatio(ratio){
+  const b = GRADE_BANDS.find(x => ratio < x.max) || GRADE_BANDS[GRADE_BANDS.length - 1];
+  return { emoji:b.emoji, name:b.names[Math.floor(Math.random() * b.names.length)], color:b.color, big:b.big };
+}
+
 /* ===================== 계산 ===================== */
 function compute(){
   const aKey = assetSel.value, a = ASSETS[aKey];
@@ -450,9 +446,9 @@ function resultUrl(r){
 
 /* ===================== 결과 렌더 ===================== */
 function render(r){
-  const g = grade(r.finalWon);
+  const g = gradeByRatio(r.ratio); r.grade = g;
   document.getElementById('gradeEmoji').textContent = g.emoji;
-  const gn = document.getElementById('gradeName'); gn.textContent = g.name; gn.className = "text-sm font-bold tracking-widest mb-4 " + g.color;
+  const gn = document.getElementById('gradeName'); gn.textContent = g.name; gn.className = "text-base font-extrabold tracking-wide mb-4 " + g.color;
 
   document.getElementById('rAsset').textContent = r.a.name;
   document.getElementById('rBuyTime').textContent = timeLabel(r.bKey);
@@ -469,20 +465,21 @@ function render(r){
   badge.textContent = (up?"▲ ":"▼ ") + (up?"수익률 +":"수익률 ") + fmtNum(Math.round(pct)) + "% (" + r.ratio.toFixed(1) + "배)";
   badge.className = "inline-block text-sm font-bold px-3 py-1 rounded-full mb-5 " + (up ? "bg-up/15 text-up" : "bg-down/15 text-down");
 
-  document.getElementById('gradeMsg').textContent = wittyMessage(r.ratio);
+  r.msg = wittyMessage(r.ratio);
+  document.getElementById('gradeMsg').textContent = r.msg;
 
   // 결과 카드 색 강조 + 화면 전환 (연출보다 먼저 — 무슨 일이 있어도 결과는 보이게)
   const card = document.getElementById('resultCard');
-  card.className = "glass rounded-3xl p-7 text-center pop " + (g.key==="rich" ? "gold-glow" : "");
+  card.className = "glass rounded-3xl p-7 text-center pop " + (g.big ? "gold-glow" : "");
 
   document.getElementById('form-view').classList.add('hidden');
   document.getElementById('result-view').classList.remove('hidden');
   window.scrollTo({top:0, behavior:'smooth'});
   window.__lastResult = r;
 
-  // 카운트업 애니메이션 + 대부호 컨페티
+  // 카운트업 애니메이션 + 대박(3배+) 컨페티
   animateNumber(document.getElementById('finalAmount'), r.finalWon);
-  if (g.key === "rich") confetti();
+  if (g.big) confetti();
 }
 
 /* ===================== 컨페티 연출 ===================== */
@@ -614,12 +611,12 @@ document.getElementById('retryBtn').addEventListener('click', () => {
 /* ===================== 공유 ===================== */
 document.getElementById('shareBtn').addEventListener('click', async () => {
   const r = window.__lastResult; if (!r) return;
-  const g = grade(r.finalWon);
+  const g = r.grade || gradeByRatio(r.ratio);
   const text =
 `⏳ IF 계좌 계산기 결과 ${g.emoji}
 ${r.a.name}을(를) ${TIMEMAP[r.bKey].date}(${TIMEMAP[r.bKey].story})에 ${formatKRW(r.amount)} 샀다면?
 👉 ${r.sellLabel} 매도 시: ${formatKRW(r.finalWon)} (${r.ratio.toFixed(1)}배!)
-[${g.name.replace(/ /g,'')}]
+[${g.name}] ${r.msg || ''}
 너도 해봐 👇`;
 
   // 결과가 담긴 링크 (열면 같은 결과가 자동 표시됨)
