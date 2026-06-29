@@ -136,8 +136,8 @@
     <button id="shareBtn" class="w-full mt-4 bg-[#FEE500] text-black font-extrabold text-base py-4 rounded-2xl active:scale-[.98] transition flex items-center justify-center gap-2">
       💬 카카오톡으로 공유하고 친구 기 죽이기
     </button>
-    <button id="retryBtn" class="w-full mt-2.5 text-gray-400 font-semibold text-sm py-3 hover:text-white transition">
-      ↺ 다른 시점으로 다시 계산하기
+    <button id="retryBtn" class="w-full mt-3 py-4 rounded-2xl border border-white/25 bg-white/10 text-white font-bold text-base hover:bg-white/20 active:scale-[.98] transition">
+      🔄 다른 시점으로 다시 계산하기
     </button>
   </section>
 
@@ -150,16 +150,15 @@
 <!-- ============ 결과 직전 전면(인터스티셜) 광고 모달 ============ -->
 <div id="adModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center px-4">
   <div class="glass rounded-3xl p-5 text-center w-full max-w-[360px] max-h-[92vh] overflow-y-auto">
-    <p class="text-gold font-bold text-base">결과 분석 완료!</p>
-    <p class="text-gray-400 text-xs mt-1 mb-3">잠시 후 결과가 공개됩니다</p>
+    <p class="text-gold font-extrabold text-2xl leading-tight">⏳ 결과 분석 중…</p>
+    <p class="text-gray-200 text-base mt-2 mb-4 font-medium">잠시 후 당신의 가상 계좌가 공개됩니다</p>
     <!-- 카카오 애드핏 전면광고 — 모달이 '보인 뒤' 동적 삽입해야 정상 렌더됨 -->
     <div id="adSlot" class="mx-auto w-[320px] max-w-full flex items-center justify-center overflow-hidden">
-      <div id="adFallback" class="py-10 text-center">
-        <div class="text-4xl mb-2">💰</div>
-        <p class="text-gray-300 text-sm font-semibold">결과를 불러오는 중…</p>
+      <div id="adFallback" class="py-12 text-center">
+        <div class="text-5xl animate-pulse">💰</div>
       </div>
     </div>
-    <p class="mt-4 text-lg font-black text-white"><span id="adCount">3</span>초 후 결과 공개</p>
+    <p class="mt-5 text-4xl font-black text-gold"><span id="adCount">3</span><span class="text-2xl align-middle">초 후 공개</span></p>
   </div>
 </div>
 
@@ -426,8 +425,8 @@ function animateNumber(el, target){
    상단 배너·하단 사각은 항상 노출, 320x480은 결과 직전 전면(인터스티셜)으로 노출.
    ※ 단위코드는 adfit.kakao.com 발급값. 전면광고는 모달이 '보인 뒤' 로드해야 렌더됨. */
 const ADFIT_BANNER_320 = "DAN-LLpWlk1ICCATK0lQ";  // 상단 배너 (320x100) — 채움 잘됨
-const ADFIT_BOTTOM     = "DAN-z7X3S5Y4Xp9L5HFI";  // 하단 (320x480) — 노필 시 자동 접힘
-const ADFIT_INTER      = "DAN-8QjyorrOVw0Bv1mE";  // 팝업 전면 (300x250) — 채움 잘되는 사이즈
+const ADFIT_BOTTOM     = "DAN-8QjyorrOVw0Bv1mE";  // 하단 사각 (300x250) — 채움 잘됨
+const ADFIT_INTER      = "DAN-z7X3S5Y4Xp9L5HFI";  // 팝업 전면 (320x480)
 
 function isRealUnit(u){ return /^DAN-[A-Za-z0-9]{8,}$/.test(u || ""); }
 
@@ -456,7 +455,7 @@ function placeBanner(container, unit, w, h){
   }, 600);
 }
 placeBanner(document.getElementById('adTop'), ADFIT_BANNER_320, 320, 100);
-placeBanner(document.getElementById('adBottom'), ADFIT_BOTTOM, 320, 480);
+placeBanner(document.getElementById('adBottom'), ADFIT_BOTTOM, 300, 250);
 
 // ba.min.js 는 '한 번만' 로드한다.
 //  (스크립트 앞부분에 if(!("adfit" in self)) 가드가 있어 두 번째 로드는 무시됨.
@@ -498,7 +497,7 @@ function loadInterstitial(){
   if (!slot) return;
   slot.innerHTML = '<div id="adFallback" class="py-10 text-center"><div class="text-4xl mb-2">💰</div><p class="text-gray-300 text-sm font-semibold">결과를 불러오는 중…</p></div>';
   if (!isRealUnit(ADFIT_INTER)) return;
-  const ins = makeIns(ADFIT_INTER, 300, 250);
+  const ins = makeIns(ADFIT_INTER, 320, 480);
   slot.appendChild(ins);
   renderAd(ins);                          // ★ 동적 광고는 명시적 렌더 필요
   let tries = 0;
