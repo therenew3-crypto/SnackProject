@@ -119,7 +119,8 @@
 
       <p class="text-gray-400 text-xs">만약 그때 샀다면, 당신의 계좌엔…</p>
       <div id="finalAmount" class="text-4xl font-black my-3 text-gold leading-tight">0원</div>
-      <div id="returnBadge" class="inline-block text-sm font-bold px-3 py-1 rounded-full mb-5"></div>
+      <div id="returnBadge" class="inline-block text-sm font-bold px-3 py-1 rounded-full mb-2"></div>
+      <div id="rankLine" class="text-sm font-extrabold text-gold mb-5"></div>
 
       <div class="bg-black/30 rounded-2xl p-4 text-sm space-y-2 text-left mb-5">
         <div class="flex justify-between"><span class="text-gray-400">자산</span><span id="rAsset" class="font-semibold"></span></div>
@@ -401,6 +402,37 @@ function gradeByRatio(ratio){
   return { emoji:b.emoji, name:b.names[Math.floor(Math.random() * b.names.length)], color:b.color, big:b.big };
 }
 
+/* ===================== 전체 시나리오 수익률 순위 =====================
+   (자산 × 매수시점 × 매도시점) 모든 유효 조합의 배수를 미리 계산해 내림차순 정렬.
+   금액과 무관하므로 한 번만 계산하면 됨. */
+const ALL_RATIOS = (function(){
+  const arr = [];
+  Object.keys(ASSETS).forEach(aKey => {
+    TIMES.forEach(t => {
+      const bp = ASSETS[aKey][t.key];
+      if (bp == null) return;
+      SELL_POINTS.forEach(sp => {
+        if (sp.t <= buyT(t.key)) return;        // 매도 시점이 매수보다 미래여야
+        const spr = SELLS[aKey][sp.key];
+        if (spr == null) return;
+        arr.push(spr / bp);
+      });
+    });
+  });
+  return arr.sort((a, b) => b - a);             // 내림차순(큰 수익률이 1등)
+})();
+function rankInfo(ratio){
+  let better = 0;
+  for (const x of ALL_RATIOS){ if (x > ratio + 1e-9) better++; else break; }
+  const total = ALL_RATIOS.length;
+  const rank = better + 1;
+  const pct = Math.max(0.1, (rank / total) * 100);
+  const label = rank === 1
+    ? `🥇 전체 ${fmtNum(total)}개 시나리오 중 당당 1등! 역대 최고 명당`
+    : `🏆 전체 ${fmtNum(total)}개 시나리오 중 ${fmtNum(rank)}등 · 상위 ${pct.toFixed(1)}%`;
+  return { rank, total, pct, label };
+}
+
 /* ===================== 계산 ===================== */
 function compute(){
   const aKey = assetSel.value, a = ASSETS[aKey];
@@ -464,6 +496,9 @@ function render(r){
   const badge = document.getElementById('returnBadge');
   badge.textContent = (up?"▲ ":"▼ ") + (up?"수익률 +":"수익률 ") + fmtNum(Math.round(pct)) + "% (" + r.ratio.toFixed(1) + "배)";
   badge.className = "inline-block text-sm font-bold px-3 py-1 rounded-full mb-5 " + (up ? "bg-up/15 text-up" : "bg-down/15 text-down");
+
+  const rk = rankInfo(r.ratio); r.rankLabel = rk.label;
+  document.getElementById('rankLine').textContent = rk.label;
 
   r.msg = wittyMessage(r.ratio);
   document.getElementById('gradeMsg').textContent = r.msg;
@@ -616,6 +651,7 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
 `⏳ IF 계좌 계산기 결과 ${g.emoji}
 ${r.a.name}을(를) ${TIMEMAP[r.bKey].date}(${TIMEMAP[r.bKey].story})에 ${formatKRW(r.amount)} 샀다면?
 👉 ${r.sellLabel} 매도 시: ${formatKRW(r.finalWon)} (${r.ratio.toFixed(1)}배!)
+${r.rankLabel || ''}
 [${g.name}] ${r.msg || ''}
 너도 해봐 👇`;
 
