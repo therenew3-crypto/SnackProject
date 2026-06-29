@@ -265,6 +265,7 @@ orderedCats.forEach(cat => {
   });
   assetSel.appendChild(og);
 });
+assetSel.value = "000660";   // 기본 자산: SK하이닉스
 const buySel = document.getElementById('buyTime');
 TIMES.forEach(t => {
   const o = document.createElement('option'); o.value = t.key; o.textContent = `${t.date} · ${t.story}`; buySel.appendChild(o);
@@ -651,7 +652,7 @@ document.getElementById('retryBtn').addEventListener('click', () => {
 
 /* ===================== 입력값 초기화 (처음 랜딩 상태로) ===================== */
 function resetForm(){
-  assetSel.selectedIndex = 0;                       // 첫 자산(삼성전자)
+  assetSel.value = "000660";                         // 기본 자산: SK하이닉스
   buySel.selectedIndex = 0;                          // 첫 시점(2015.01.02)
   amountEl.value = '';                               // 금액 비움
   sellIdx = 10;                                      // 매도 시점 = 현재
