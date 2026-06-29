@@ -425,62 +425,94 @@ function animateNumber(el, target){
 /* ===================== 카카오 애드핏 광고 (하이브리드) =====================
    상단 배너·하단 사각은 항상 노출, 320x480은 결과 직전 전면(인터스티셜)으로 노출.
    ※ 단위코드는 adfit.kakao.com 발급값. 전면광고는 모달이 '보인 뒤' 로드해야 렌더됨. */
-const ADFIT_BANNER_320 = "DAN-LLpWlk1ICCATK0lQ";  // 상단 배너 (320x100) — 항상 노출
-const ADFIT_RECT_300   = "DAN-8QjyorrOVw0Bv1mE";  // 하단 사각 (300x250) — 항상 노출
-const ADFIT_INTER      = "DAN-z7X3S5Y4Xp9L5HFI";  // 전면 인터스티셜 (320x480) — 결과 직전
+const ADFIT_BANNER_320 = "DAN-LLpWlk1ICCATK0lQ";  // 상단 배너 (320x100) — 채움 잘됨
+const ADFIT_BOTTOM     = "DAN-z7X3S5Y4Xp9L5HFI";  // 하단 (320x480) — 노필 시 자동 접힘
+const ADFIT_INTER      = "DAN-8QjyorrOVw0Bv1mE";  // 팝업 전면 (300x250) — 채움 잘되는 사이즈
 
 function isRealUnit(u){ return /^DAN-[A-Za-z0-9]{8,}$/.test(u || ""); }
 
-function loadAdfit(container, unit, w, h){
-  if (!container) return;
-  if (!isRealUnit(unit)) return;          // 코드 미설정 → 안내 문구 유지
-  container.innerHTML = "";               // 이전 광고/문구 정리(중복 방지)
+const ADFIT_SRC = 'https://t1.daumcdn.net/kas/static/ba.min.js';
+
+function makeIns(unit, w, h){
   const ins = document.createElement('ins');
   ins.className = 'kakao_ad_area';
   ins.style.display = 'none';
   ins.setAttribute('data-ad-unit', unit);
   ins.setAttribute('data-ad-width', String(w));
   ins.setAttribute('data-ad-height', String(h));
-  container.appendChild(ins);
-  const s = document.createElement('script');
-  s.src = 'https://t1.daumcdn.net/kas/static/ba.min.js';
-  s.async = true;
-  container.appendChild(s);              // 삽입 후 스크립트가 영역을 스캔·렌더
+  return ins;
 }
 
-// 상단 배너 + 하단 사각: 페이지 로드 시 각 1회 (둘 다 항상 보임)
-loadAdfit(document.getElementById('adTop'), ADFIT_BANNER_320, 320, 100);
-loadAdfit(document.getElementById('adBottom'), ADFIT_RECT_300, 300, 250);
+// 항상 노출 배너: ins를 DOM에 미리 넣어두면 SDK 로드 시 자동 스캔·렌더된다
+function placeBanner(container, unit, w, h){
+  if (!container || !isRealUnit(unit)) return;
+  container.innerHTML = "";
+  container.appendChild(makeIns(unit, w, h));
+  // 일정 시간 내 안 채워지면(노필) 영역을 접어 빈 칸 방지
+  let t = 0;
+  const iv = setInterval(() => {
+    if (container.querySelector('iframe')){ clearInterval(iv); }
+    else if (++t > 12){ container.style.display = 'none'; clearInterval(iv); }
+  }, 600);
+}
+placeBanner(document.getElementById('adTop'), ADFIT_BANNER_320, 320, 100);
+placeBanner(document.getElementById('adBottom'), ADFIT_BOTTOM, 320, 480);
 
-/* 전면(팝업) 광고: 안내 폴백을 유지한 채 광고를 덧붙이고,
-   광고가 실제로 채워지면(iframe 생성) 폴백을 숨긴다.
-   → 미승인·미충전이어도 팝업이 빈 박스로 깨지지 않음 */
+// ba.min.js 는 '한 번만' 로드한다.
+//  (스크립트 앞부분에 if(!("adfit" in self)) 가드가 있어 두 번째 로드는 무시됨.
+//   → 나중에 추가되는 팝업 광고는 스크립트 재삽입이 아니라 render API로 직접 렌더해야 함)
+(function loadAdfitSdkOnce(){
+  if (document.querySelector('script[src*="ba.min.js"]')) return;
+  const s = document.createElement('script');
+  s.src = ADFIT_SRC; s.async = true;
+  document.body.appendChild(s);
+})();
+
+// 공개 API는 window.adfit (render/destroy 보유). window.kakaoAdFit 는 cmd 큐일 뿐.
+function adfitApi(){
+  if (window.adfit && typeof window.adfit.render === 'function') return window.adfit;
+  if (window.kakaoAdFit && typeof window.kakaoAdFit.render === 'function') return window.kakaoAdFit;
+  return null;
+}
+// 동적으로 추가된 광고(ins)를 공식 render API로 렌더.
+// 모달 레이아웃이 잡힌 뒤(한 박자 뒤) 호출해야 크기 0으로 스킵되지 않음.
+function renderAd(ins){
+  let tries = 0;
+  function attempt(){
+    const api = adfitApi();
+    if (api){
+      try { api.render(ins); console.log('[AD] interstitial render() 호출', api === window.adfit ? 'window.adfit' : 'window.kakaoAdFit'); }
+      catch(e){ console.warn('[AD] render 실패:', e); }
+      return;
+    }
+    if (++tries < 25) setTimeout(attempt, 150);
+    else console.warn('[AD] window.adfit 로드 안 됨 (SDK 미로드/차단?)');
+  }
+  setTimeout(attempt, 150);   // 모달이 그려진 뒤 렌더
+}
+
+/* 전면(팝업) 광고: 모달이 열릴 때 새 ins를 만들어 render API로 렌더.
+   광고가 실제로 채워지면(iframe 생성) 안내 폴백을 숨긴다(미충전 시 빈 박스 방지). */
 function loadInterstitial(){
   const slot = document.getElementById('adSlot');
   if (!slot) return;
-  // 안내 폴백 복원(이전 광고 정리)
   slot.innerHTML = '<div id="adFallback" class="py-10 text-center"><div class="text-4xl mb-2">💰</div><p class="text-gray-300 text-sm font-semibold">결과를 불러오는 중…</p></div>';
   if (!isRealUnit(ADFIT_INTER)) return;
-  const ins = document.createElement('ins');
-  ins.className = 'kakao_ad_area';
-  ins.style.display = 'none';
-  ins.setAttribute('data-ad-unit', ADFIT_INTER);
-  ins.setAttribute('data-ad-width', '320');
-  ins.setAttribute('data-ad-height', '480');
+  const ins = makeIns(ADFIT_INTER, 300, 250);
   slot.appendChild(ins);
-  const s = document.createElement('script');
-  s.src = 'https://t1.daumcdn.net/kas/static/ba.min.js';
-  s.async = true;
-  slot.appendChild(s);
-  // 광고가 채워졌으면 안내 폴백 숨김 (0.6초 간격으로 ~3초간 확인)
+  renderAd(ins);                          // ★ 동적 광고는 명시적 렌더 필요
   let tries = 0;
   const chk = setInterval(() => {
-    if (slot.querySelector('iframe')) {
+    if (slot.querySelector('iframe')){
       const fb = document.getElementById('adFallback');
       if (fb) fb.style.display = 'none';
+      console.log('[AD] interstitial 채워짐 ✅ (iframe 생성)');
       clearInterval(chk);
-    } else if (++tries > 5) clearInterval(chk);
-  }, 600);
+    } else if (++tries > 9){
+      console.warn('[AD] interstitial 미충전 ❌ — 5초간 iframe 없음 (렌더는 됐는데 광고 재고 없음일 가능성). Network에서 unit=' + ADFIT_INTER + ' 요청 확인 필요');
+      clearInterval(chk);
+    }
+  }, 500);
 }
 
 /* ===================== 결과 확인 → 전면광고 3초 → 결과 =====================
