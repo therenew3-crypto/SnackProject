@@ -106,6 +106,9 @@
     <button id="calcBtn" class="w-full bg-gold text-black font-extrabold text-lg py-4 rounded-2xl gold-glow hover:brightness-95 active:scale-[.98] transition">
       💸 내 가상 계좌 잔액 확인하기
     </button>
+    <button id="resetBtn" class="w-full text-gray-400 font-semibold text-xs py-2 hover:text-white transition">
+      ↺ 입력값 초기화
+    </button>
     <p class="text-[11px] text-gray-500 text-center leading-snug">
       ※ 시세 출처: yfinance·KRX(2026-06-27 기준 실데이터).<br/>재미용이며 투자 권유가 아닙니다.
     </p>
@@ -644,6 +647,20 @@ document.getElementById('retryBtn').addEventListener('click', () => {
   document.getElementById('result-view').classList.add('hidden');
   document.getElementById('form-view').classList.remove('hidden');
   window.scrollTo({top:0, behavior:'smooth'});
+});
+
+/* ===================== 입력값 초기화 (처음 랜딩 상태로) ===================== */
+function resetForm(){
+  assetSel.selectedIndex = 0;                       // 첫 자산(삼성전자)
+  buySel.selectedIndex = 0;                          // 첫 시점(2015.01.02)
+  amountEl.value = '';                               // 금액 비움
+  sellIdx = 10;                                      // 매도 시점 = 현재
+  sellRange.value = 10;
+  sellLabelEl.textContent = SELL_POINTS[10].label;
+}
+document.getElementById('resetBtn').addEventListener('click', () => {
+  resetForm();
+  amountEl.focus();
 });
 
 /* ===================== 공유 ===================== */
